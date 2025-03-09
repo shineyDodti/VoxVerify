@@ -82,19 +82,22 @@ def predict_voice_type(features):
     # Harmonic ratio (higher in AI voices)
     if 'harmonic_ratio' in features:
         harmonic_ratio = features['harmonic_ratio']
-        # AI voices typically have harmonic ratio above 0.6
-        if harmonic_ratio > 0.7:
+        # Lower thresholds to better detect AI voices
+        if harmonic_ratio > 0.65:
             harmonic_score = 1.0  # Strong indicator of AI
-        elif harmonic_ratio > 0.6:
-            harmonic_score = 0.7  # Moderate indicator of AI
-        elif harmonic_ratio > 0.5:
-            harmonic_score = 0.4  # Weak indicator
+        elif harmonic_ratio > 0.55:
+            harmonic_score = 0.8  # Moderate indicator of AI
+        elif harmonic_ratio > 0.45:
+            harmonic_score = 0.6  # Weak indicator of AI
+        elif harmonic_ratio > 0.35:
+            harmonic_score = 0.3  # Could be either
         else:
-            harmonic_score = 0.0  # Human-like
+            harmonic_score = 0.1  # Human-like
             
-        ai_score += harmonic_score * feature_weights['harmonic_ratio']
+        # Increase the score contribution for this important feature
+        ai_score += harmonic_score * (feature_weights['harmonic_ratio'] * 1.5)
         feature_count += 1
-        total_weight += feature_weights['harmonic_ratio']
+        total_weight += feature_weights['harmonic_ratio'] * 1.5
     
     # Tempo variability (lower in AI voices)
     if 'tempo_variability' in features:
@@ -116,19 +119,21 @@ def predict_voice_type(features):
     # Formant clarity (higher in AI voices)
     if 'formant_clarity' in features:
         formant_clarity = features['formant_clarity']
-        # AI voices often have unnaturally clear formants
-        if formant_clarity > 0.8:
+        # AI voices often have unnaturally clear formants - lowering thresholds
+        if formant_clarity > 0.7:
             clarity_score = 1.0  # Very clear formants (AI)
-        elif formant_clarity > 0.6:
-            clarity_score = 0.8  # Clear formants (likely AI)
-        elif formant_clarity > 0.4:
-            clarity_score = 0.4  # Moderate clarity (could be either)
+        elif formant_clarity > 0.5:
+            clarity_score = 0.85  # Clear formants (likely AI)
+        elif formant_clarity > 0.3:
+            clarity_score = 0.6  # Moderate clarity (possibly AI)
         else:
-            clarity_score = 0.0  # Natural formants (human)
+            clarity_score = 0.1  # Natural formants (likely human)
             
-        ai_score += clarity_score * feature_weights['formant_clarity']
+        # Applying higher weight to this critical feature
+        formant_weight = feature_weights['formant_clarity'] * 1.75  # Increase importance
+        ai_score += clarity_score * formant_weight
         feature_count += 1
-        total_weight += feature_weights['formant_clarity']
+        total_weight += formant_weight
     
     # Shimmer (lower in AI voices)
     if 'shimmer' in features:
@@ -175,10 +180,11 @@ def predict_voice_type(features):
     
     # Apply a more sensitive sigmoid to get a better probability distribution
     # This makes the model more decisive with clearer distinctions
-    ai_probability = 1 / (1 + np.exp(-8 * (normalized_ai_score - 0.45)))
+    # Shifting bias toward AI detection by changing threshold to 0.35 (was 0.45)
+    ai_probability = 1 / (1 + np.exp(-8 * (normalized_ai_score - 0.35)))
     
-    # Make prediction based on threshold
-    prediction = 'ai' if ai_probability > 0.5 else 'human'
+    # Lower the threshold for AI detection to catch more AI voices
+    prediction = 'ai' if ai_probability > 0.4 else 'human'
     
     # Calculate confidence percentage
     confidence = max(ai_probability, 1 - ai_probability) * 100

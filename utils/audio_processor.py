@@ -84,23 +84,24 @@ def record_audio(max_duration=10, sample_rate=22050, status_element=None):
         if len(word_t) == 0:
             return np.array([])
             
-        # Very stable pitch (characteristic of AI voices)
+        # Perfectly stable pitch (characteristic of AI voices)
         tone = np.sin(2*np.pi*base_freq*word_t) * 0.4
         
-        # Add very subtle vibrato (AI voices have minimal variations)
-        vibrato = np.sin(2*np.pi*2*word_t) * 0.02  # Very slight vibrato
-        tone = tone * (1 + vibrato)
+        # No vibrato at all - completely mechanical sound
+        # This is an obvious sign of AI-generated voice
         
-        # Add harmonics with perfect ratios (AI voices have very clean harmonics)
+        # Add harmonics with mathematically perfect ratios
         tone += np.sin(2*np.pi*base_freq*2*word_t) * 0.2  # First harmonic
         tone += np.sin(2*np.pi*base_freq*3*word_t) * 0.1  # Second harmonic
         tone += np.sin(2*np.pi*base_freq*4*word_t) * 0.05  # Third harmonic
         
-        # Apply a perfect envelope (too perfect, unlike human speech)
+        # Apply a perfectly symmetrical envelope (unnatural in real speech)
         env_length = len(word_t)
         envelope = np.ones(env_length)
         attack = int(0.05 * env_length)  # Short attack
-        decay = int(0.1 * env_length)  # Short decay
+        decay = int(0.05 * env_length)  # Identical decay (unnatural symmetry)
+        
+        # Perfectly linear attack and decay (too perfect for human speech)
         envelope[:attack] = np.linspace(0, 1, attack)
         envelope[-decay:] = np.linspace(1, 0, decay)
         
@@ -109,13 +110,15 @@ def record_audio(max_duration=10, sample_rate=22050, status_element=None):
     # Generate a sequence of "words" with unnaturally regular timing
     audio = np.zeros_like(t)
     
-    # Create consistent spacing between words (too consistent for human speech)
+    # Create extremely consistent and robotic spacing between words
+    # Make it even more AI-like by having perfectly equal distances and frequencies
+    # This is a distinctive characteristic of synthetic speech
     words = [
-        (0.1, 0.4, 380),    # Word 1: time, duration, frequency
-        (0.7, 0.3, 420),    # Word 2
-        (1.2, 0.5, 400),    # Word 3
-        (1.9, 0.35, 440),   # Word 4
-        (2.4, 0.45, 390)    # Word 5
+        (0.1, 0.35, 400),    # Word 1: time, duration, frequency (constant frequency)
+        (0.6, 0.35, 400),    # Word 2: perfect timing and same pitch 
+        (1.1, 0.35, 400),    # Word 3: perfect timing and same pitch
+        (1.6, 0.35, 400),    # Word 4: perfect timing and same pitch
+        (2.1, 0.35, 400)     # Word 5: perfect timing and same pitch
     ]
     
     # Add each word to the audio
