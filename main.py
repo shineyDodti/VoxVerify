@@ -53,6 +53,7 @@ if 'audio_source' not in st.session_state:
 if 'filename' not in st.session_state:
     st.session_state.filename = None
 if 'current_page' not in st.session_state:
+    # Set the current page: "main", "detailed_analysis", or "documentation"
     st.session_state.current_page = "main"
 
 # File uploader column
@@ -498,6 +499,245 @@ if st.session_state.audio_data is not None:
         """
         
         st.markdown(conclusion)
+    
+    elif st.session_state.current_page == "documentation":
+        # Documentation Page 
+        st.title("Voice Recognition Technology Documentation")
+        
+        # Back button
+        if st.button("← Back to Main Page"):
+            st.session_state.current_page = "main"
+            st.rerun()
+            
+        # Introduction section
+        st.header("How AI Voice Detection Works")
+        st.markdown("""
+        This documentation explains the technology and science behind our AI vs. Human voice detection system.
+        Understanding how voice detection works can help you interpret results and use the system more effectively.
+        """)
+        
+        # Create tabs for different documentation sections
+        doc_tab1, doc_tab2, doc_tab3, doc_tab4 = st.tabs([
+            "Voice Recognition Process", 
+            "Feature Extraction", 
+            "Classification Model", 
+            "Accuracy & Limitations"
+        ])
+        
+        with doc_tab1:
+            st.subheader("Voice Recognition Process")
+            st.markdown("""
+            ### 1. Audio Input
+            The process begins with an audio input - either an uploaded audio file or a recording made directly in the application.
+            The system supports various audio formats (WAV, MP3, OGG, M4A) and processes them into a standardized format for analysis.
+            
+            ### 2. Audio Preprocessing
+            Raw audio is preprocessed to optimize it for feature extraction:
+            - **Sample Rate Normalization**: Converting to a standard sample rate (22.05 kHz)
+            - **Duration Normalization**: Ensuring enough audio data is available
+            - **Silence Removal**: Trimming leading and trailing silence
+            - **Amplitude Normalization**: Adjusting volume to a standard level
+            
+            ### 3. Feature Extraction
+            The system extracts numerous acoustic features from the audio that help differentiate between human and AI-generated voices.
+            These features capture subtle characteristics that may not be audible to the human ear but are mathematically detectable.
+            
+            ### 4. Classification
+            A specialized algorithm analyzes the extracted features and classifies the voice as either human or AI-generated,
+            along with a confidence score that indicates the reliability of the prediction.
+            
+            ### 5. Results Presentation
+            The system presents results through:
+            - A clear classification label (Human or AI)
+            - Confidence score
+            - Visualizations of key features
+            - Detailed breakdown of acoustic characteristics
+            """)
+            
+            st.image("https://i.ibb.co/j4TF6z2/voice-recognition-process.png", caption="Voice Recognition Process Flow")
+        
+        with doc_tab2:
+            st.subheader("Feature Extraction")
+            st.markdown("""
+            ### Key Acoustic Features
+            
+            Our system extracts and analyzes the following acoustic features:
+            
+            #### 1. Pitch Stability
+            - **What it is**: Measures how consistently the fundamental frequency (pitch) is maintained throughout speech
+            - **Why it matters**: Human voices naturally vary in pitch during speech, while AI-generated voices often show unnatural stability
+            - **Measurement**: Standard deviation of fundamental frequency over time
+            
+            #### 2. Harmonic-to-Noise Ratio
+            - **What it is**: The ratio of harmonic energy to noise energy in the voice
+            - **Why it matters**: Human voices contain natural noise components, while AI voices often have unnaturally "clean" harmonics
+            - **Measurement**: Ratio of energy in harmonic components versus non-harmonic components
+            
+            #### 3. Formant Clarity and Structure
+            - **What it is**: Formants are resonant frequencies of the vocal tract that give voice its characteristic sound
+            - **Why it matters**: AI voices may have unnaturally clear or stable formant structures
+            - **Measurement**: Analysis of formant peaks, bandwidth, and stability
+            
+            #### 4. Spectral Centroid
+            - **What it is**: The "center of mass" of the spectrum - represents where the "average" frequency is located
+            - **Why it matters**: Indicates brightness/tone of the voice
+            - **Measurement**: Weighted mean of frequencies present in the signal
+            
+            #### 5. Spectral Flatness
+            - **What it is**: Measures how noise-like vs. tone-like a sound is
+            - **Why it matters**: AI-generated voices often have distinctive flatness patterns
+            - **Measurement**: Ratio of geometric mean to arithmetic mean of the spectrum
+            
+            #### 6. Tempo and Rhythm Variability
+            - **What it is**: Natural variations in speaking speed and rhythm
+            - **Why it matters**: Humans exhibit natural rhythm variations that may be difficult for AI to replicate
+            - **Measurement**: Standard deviation of syllable durations and pauses
+            
+            #### 7. Additional Features
+            - Shimmer (amplitude variation)
+            - Zero-crossing rate
+            - Spectral contrast
+            - Mel-frequency cepstral coefficients (MFCCs)
+            """)
+            
+            # Feature importance chart
+            feature_names = ['Pitch Stability', 'Formant Clarity', 'Tempo Variability', 
+                            'Harmonic Ratio', 'Spectral Flatness', 'Shimmer',
+                            'Spectral Centroid', 'Spectral Contrast', 'Zero Crossing Rate']
+            
+            feature_importance = [0.40, 0.40, 0.35, 0.30, 0.20, 0.25, 0.15, 0.15, 0.10]
+            
+            fig, ax = plt.subplots(figsize=(10, 5))
+            bars = ax.barh(feature_names, feature_importance, color='skyblue')
+            ax.set_xlabel('Relative Importance')
+            ax.set_title('Feature Importance in Voice Classification')
+            ax.set_xlim(0, 0.5)
+            
+            # Add values to the end of each bar
+            for i, bar in enumerate(bars):
+                ax.text(bar.get_width() + 0.01, bar.get_y() + bar.get_height()/2, 
+                      f'{feature_importance[i]:.2f}', va='center')
+            
+            st.pyplot(fig)
+        
+        with doc_tab3:
+            st.subheader("Classification Model")
+            st.markdown("""
+            ### How the AI vs. Human Classification Works
+            
+            Our voice classification system uses a sophisticated rule-based approach that mimics the behavior of advanced machine learning models,
+            specifically designed to identify the subtle differences between human and AI-generated voices.
+            
+            #### Classification Approach
+            
+            The classification system:
+            
+            1. **Weighted Feature Analysis**: Each acoustic feature is weighted according to its importance in distinguishing between human and AI voices
+            
+            2. **Dual Scoring Mechanism**: The system computes both an AI score and a human score based on feature analysis
+            
+            3. **Threshold-Based Decision Making**: For each feature, specific thresholds determine how strongly it indicates AI or human characteristics
+            
+            4. **Confidence Calculation**: The final prediction includes a confidence score indicating the reliability of the classification
+            
+            #### Decision Logic
+            
+            For each feature, the classification algorithm:
+            
+            1. Compares the feature value to established thresholds derived from analysis of known human and AI voices
+            
+            2. Applies appropriate weighting based on the feature's discriminative power
+            
+            3. Contributes to both the AI and human score in proportion to how strongly it indicates each category
+            
+            4. Applies a human bias correction factor to prevent misclassification of human voices as AI
+            
+            The final classification is determined by comparing the weighted scores, with safeguards to ensure accuracy.
+            
+            #### Improvements Over Time
+            
+            The system undergoes continuous calibration and improvement through:
+            
+            - Expert tuning of feature weights and thresholds
+            - Analysis of edge cases
+            - Recalibration to account for advancements in voice synthesis technology
+            """)
+            
+            # Classification flowchart visualization
+            st.image("https://i.ibb.co/LJJGLKh/classification-diagram.png", 
+                   caption="Voice Classification Decision Process")
+            
+            st.markdown("""
+            ### Model Evolution
+            
+            Our classification system evolves over time to keep pace with advances in AI-generated voice technology:
+            
+            - **Regular Updates**: Thresholds and weights are regularly recalibrated
+            - **New Features**: Additional discriminating features are introduced as they are identified
+            - **Feedback Integration**: User feedback helps identify misclassifications for system improvement
+            """)
+        
+        with doc_tab4:
+            st.subheader("Accuracy & Limitations")
+            st.markdown("""
+            ### Accuracy Considerations
+            
+            The voice detection system typically achieves high accuracy under ideal conditions, but several factors can affect performance:
+            
+            #### Accuracy Factors
+            
+            - **Audio Quality**: Higher-quality recordings yield more accurate results
+            - **Recording Duration**: Longer samples provide more data for analysis, improving accuracy
+            - **Background Noise**: Excessive noise can interfere with feature extraction
+            - **Voice Type**: Some voice types may have characteristics that are more challenging to classify
+            
+            #### Detection Confidence
+            
+            The confidence score indicates the system's certainty in its classification:
+            
+            - **High Confidence (80-100%)**: Strong evidence for the classification
+            - **Medium Confidence (60-79%)**: Good evidence, but some ambiguity
+            - **Lower Confidence (<60%)**: Significant uncertainty in the classification
+            
+            ### System Limitations
+            
+            Users should be aware of the following limitations:
+            
+            #### Technology Limitations
+            
+            - **Evolving AI Technology**: As AI voice synthesis improves, detection becomes more challenging
+            - **Novel Generation Methods**: New AI voice generation techniques may initially evade detection
+            - **Edge Cases**: Unusual human voices might occasionally be misclassified
+            
+            #### Use Case Considerations
+            
+            - The system is designed as an analytical tool, not as definitive proof
+            - Best used as part of a broader verification process
+            - Should be combined with other verification methods for critical applications
+            
+            #### Continuous Improvement
+            
+            We continuously work to improve the system's accuracy by:
+            
+            - Analyzing misclassifications
+            - Updating the model to account for new AI voice synthesis techniques
+            - Refining feature extraction and classification algorithms
+            - Expanding the range of voice types and conditions the system can handle effectively
+            """)
+            
+            # Accuracy factors visualization
+            factors = ['Audio Quality', 'Sample Length', 'Background Noise', 'Voice Uniqueness', 'AI Technology Advancement']
+            impact = [0.9, 0.8, 0.7, 0.6, 0.85]
+            
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.bar(factors, impact, color=['green', 'green', 'orange', 'orange', 'red'])
+            ax.set_ylabel('Impact on Detection Accuracy')
+            ax.set_title('Factors Affecting Detection Accuracy')
+            ax.set_ylim(0, 1)
+            plt.xticks(rotation=45, ha='right')
+            plt.tight_layout()
+            
+            st.pyplot(fig)
 
 # Sidebar with information
 with st.sidebar:
@@ -514,6 +754,20 @@ with st.sidebar:
     3. A machine learning model classifies the voice
     4. Results and visualizations are displayed
     """)
+    
+    # Add buttons for navigation
+    st.markdown("### Navigation")
+    nav_col1, nav_col2 = st.columns(2)
+    
+    with nav_col1:
+        if st.button("Main Analysis"):
+            st.session_state.current_page = "main"
+            st.rerun()
+    
+    with nav_col2:
+        if st.button("Documentation"):
+            st.session_state.current_page = "documentation"
+            st.rerun()
     
     st.markdown("---")
     
