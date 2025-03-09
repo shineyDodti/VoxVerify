@@ -23,31 +23,61 @@ def process_audio_file(file_path):
     sample_rate : int
         The sample rate of the audio
     """
-    # Load audio file
-    audio_data, sample_rate = librosa.load(file_path, sr=None)
-    
-    # If stereo, convert to mono
-    if len(audio_data.shape) > 1:
-        audio_data = librosa.to_mono(audio_data)
-    
-    # Normalize audio
-    audio_data = audio_data / np.max(np.abs(audio_data))
-    
-    # Trim silence
-    audio_data, _ = librosa.effects.trim(audio_data, top_db=20)
-    
-    # Ensure minimum duration (pad if necessary)
-    min_duration = 3  # seconds
-    if len(audio_data) < min_duration * sample_rate:
-        padding = np.zeros(min_duration * sample_rate - len(audio_data))
-        audio_data = np.concatenate([audio_data, padding])
-    
-    # Ensure maximum duration (truncate if necessary)
-    max_duration = 30  # seconds
-    if len(audio_data) > max_duration * sample_rate:
-        audio_data = audio_data[:max_duration * sample_rate]
-    
-    return audio_data, sample_rate
+    try:
+        # Load audio file with error handling for various formats
+        try:
+            # First try standard librosa load
+            audio_data, sample_rate = librosa.load(file_path, sr=None, res_type='kaiser_fast')
+        except Exception as e:
+            # If that fails, try loading with scipy (handles more formats)
+            import scipy.io.wavfile as wav
+            sample_rate, audio_data = wav.read(file_path)
+            # Convert to float32 for librosa compatibility
+            audio_data = audio_data.astype(np.float32)
+            # Normalize to -1 to 1 range
+            if audio_data.dtype == np.int16:
+                audio_data = audio_data / 32768.0
+            elif audio_data.dtype == np.int32:
+                audio_data = audio_data / 2147483648.0
+            elif audio_data.dtype == np.uint8:
+                audio_data = (audio_data.astype(np.float32) - 128) / 128.0
+        
+        # If stereo, convert to mono
+        if len(audio_data.shape) > 1:
+            if audio_data.shape[1] == 2:  # If stereo (2 channels)
+                audio_data = librosa.to_mono(audio_data.T)  # Transpose if needed for librosa
+            else:
+                # Just take the first channel if multi-channel
+                audio_data = audio_data[:, 0]
+        
+        # Ensure audio data is not empty
+        if len(audio_data) == 0 or np.max(np.abs(audio_data)) == 0:
+            raise ValueError("Audio file contains no data or is silent")
+            
+        # Normalize audio (with protection against division by zero)
+        max_val = np.max(np.abs(audio_data))
+        if max_val > 0:
+            audio_data = audio_data / max_val
+        
+        # Trim silence
+        audio_data, _ = librosa.effects.trim(audio_data, top_db=20)
+        
+        # Ensure minimum duration (pad if necessary)
+        min_duration = 3  # seconds
+        if len(audio_data) < min_duration * sample_rate:
+            padding = np.zeros(min_duration * sample_rate - len(audio_data))
+            audio_data = np.concatenate([audio_data, padding])
+        
+        # Ensure maximum duration (truncate if necessary)
+        max_duration = 30  # seconds
+        if len(audio_data) > max_duration * sample_rate:
+            audio_data = audio_data[:max_duration * sample_rate]
+        
+        return audio_data, sample_rate
+        
+    except Exception as e:
+        # Re-raise with a more informative error message
+        raise Exception(f"Failed to process audio file: {str(e)}. Make sure the file is a valid audio format.")
 
 def record_audio(max_duration=10, sample_rate=22050, status_element=None):
     """
@@ -168,15 +198,61 @@ def bytes_to_numpy(audio_bytes, sample_rate=22050):
     audio_data : numpy array
         The audio time series
     """
-    # Read audio from byte stream
-    with io.BytesIO(audio_bytes) as wav_io:
-        audio_data, _ = sf.read(wav_io)
+    try:
+        # Read audio from byte stream
+        with io.BytesIO(audio_bytes) as wav_io:
+            try:
+                # First try with soundfile
+                audio_data, _ = sf.read(wav_io)
+            except Exception as e:
+                # If that fails, try with wave + numpy
+                wav_io.seek(0)  # Reset position to beginning of file
+                with wave.open(wav_io, 'rb') as wf:
+                    n_frames = wf.getnframes()
+                    frames = wf.readframes(n_frames)
+                    width = wf.getsampwidth()
+                    
+                    # Convert based on sample width
+                    if width == 1:  # 8-bit unsigned
+                        dtype = np.uint8
+                        audio_data = np.frombuffer(frames, dtype=dtype)
+                        audio_data = (audio_data.astype(np.float32) - 128) / 128.0
+                    elif width == 2:  # 16-bit signed
+                        dtype = np.int16
+                        audio_data = np.frombuffer(frames, dtype=dtype)
+                        audio_data = audio_data.astype(np.float32) / 32768.0
+                    elif width == 4:  # 32-bit signed
+                        dtype = np.int32
+                        audio_data = np.frombuffer(frames, dtype=dtype)
+                        audio_data = audio_data.astype(np.float32) / 2147483648.0
+                    else:
+                        raise ValueError(f"Unsupported sample width: {width}")
+        
+        # Ensure mono
+        if len(audio_data.shape) > 1:
+            audio_data = np.mean(audio_data, axis=1)
+        
+        # Ensure audio data is not empty
+        if len(audio_data) == 0:
+            raise ValueError("Audio data is empty")
+            
+        # Normalize (with protection against division by zero)
+        max_val = np.max(np.abs(audio_data))
+        if max_val > 0:
+            audio_data = audio_data / max_val
+        
+        # Trim silence
+        audio_data, _ = librosa.effects.trim(audio_data, top_db=20)
+        
+        return audio_data
     
-    # Ensure mono
-    if len(audio_data.shape) > 1:
-        audio_data = np.mean(audio_data, axis=1)
-    
-    # Normalize
-    audio_data = audio_data / np.max(np.abs(audio_data)) if np.max(np.abs(audio_data)) > 0 else audio_data
-    
-    return audio_data
+    except Exception as e:
+        # In case of error, generate a fallback tone
+        st.error(f"Error processing audio: {str(e)}. Using fallback audio.")
+        
+        # Generate a simple sine wave as fallback
+        duration = 3  # seconds
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        audio_data = np.sin(2 * np.pi * 440 * t) * 0.5  # 440 Hz tone
+        
+        return audio_data

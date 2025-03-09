@@ -178,13 +178,13 @@ def predict_voice_type(features):
     else:
         normalized_ai_score = 0.5  # Default if no features were used
     
-    # Apply a more sensitive sigmoid to get a better probability distribution
-    # This makes the model more decisive with clearer distinctions
-    # Shifting bias toward AI detection by changing threshold to 0.35 (was 0.45)
-    ai_probability = 1 / (1 + np.exp(-8 * (normalized_ai_score - 0.35)))
+    # Apply a more balanced sigmoid to get a better probability distribution
+    # This makes the model more accurate with human voices
+    # Using a threshold of 0.5 for better balance between false positives and negatives
+    ai_probability = 1 / (1 + np.exp(-6 * (normalized_ai_score - 0.5)))
     
-    # Lower the threshold for AI detection to catch more AI voices
-    prediction = 'ai' if ai_probability > 0.4 else 'human'
+    # Standard threshold for AI detection (0.5 is balanced)
+    prediction = 'ai' if ai_probability > 0.5 else 'human'
     
     # Calculate confidence percentage
     confidence = max(ai_probability, 1 - ai_probability) * 100
