@@ -28,26 +28,88 @@ def extract_features(audio_data, sample_rate):
         audio_data = librosa.to_mono(audio_data)
     
     # Normalize audio
-    audio_data = audio_data / np.max(np.abs(audio_data))
+    audio_data = audio_data / np.max(np.abs(audio_data)) if np.max(np.abs(audio_data)) > 0 else audio_data
+    
+    # Trim leading and trailing silence
+    audio_data, _ = librosa.effects.trim(audio_data, top_db=30)
+    
+    # Apply a pre-emphasis filter to emphasize higher frequencies
+    pre_emphasis = 0.97
+    audio_data = np.append(audio_data[0], audio_data[1:] - pre_emphasis * audio_data[:-1])
     
     # Initialize features dictionary
     features = {}
     
-    # 1. Extract pitch (F0) and measure stability
+    # 1. Extract pitch (F0) and measure stability with multiple methods
     # AI voices often have unnaturally stable pitch
-    pitches, magnitudes = librosa.core.piptrack(y=audio_data, sr=sample_rate)
-    pitch_indices = np.argmax(magnitudes, axis=0)
-    pitches = pitches[pitch_indices, range(magnitudes.shape[1])]
-    pitches = pitches[pitches > 0]  # Remove zero pitches
     
-    if len(pitches) > 0:
-        # Calculate pitch stability (lower variance = more stable = more AI-like)
-        pitch_std = np.std(pitches)
-        pitch_mean = np.mean(pitches)
-        pitch_cv = pitch_std / pitch_mean if pitch_mean > 0 else 0
-        features['pitch_stability'] = 1.0 - min(pitch_cv, 1.0)  # Higher value = more stable
-    else:
-        features['pitch_stability'] = 0.5  # Default if no pitch detected
+    # Method 1: Use pYIN pitch tracking for more accuracy
+    try:
+        # First use standard piptrack for broad analysis
+        pitches, magnitudes = librosa.core.piptrack(y=audio_data, sr=sample_rate)
+        pitch_indices = np.argmax(magnitudes, axis=0)
+        standard_pitches = pitches[pitch_indices, range(magnitudes.shape[1])]
+        standard_pitches = standard_pitches[standard_pitches > 0]  # Remove zero pitches
+        
+        # Then calculate f0 with higher resolution for more detailed analysis
+        frame_length = 2048
+        hop_length = 512
+        f0, voiced_flag, voiced_probs = librosa.pyin(audio_data, 
+                                                   fmin=librosa.note_to_hz('C2'), 
+                                                   fmax=librosa.note_to_hz('C7'),
+                                                   sr=sample_rate,
+                                                   frame_length=frame_length,
+                                                   hop_length=hop_length)
+        
+        # Remove NaN values
+        f0 = f0[~np.isnan(f0)]
+        
+        # Get stability scores from both methods
+        if len(standard_pitches) > 0:
+            # Calculate coefficient of variation for standard method
+            std_pitch_std = np.std(standard_pitches)
+            std_pitch_mean = np.mean(standard_pitches)
+            std_pitch_cv = std_pitch_std / std_pitch_mean if std_pitch_mean > 0 else 0
+            std_stability = 1.0 - min(std_pitch_cv, 1.0)
+        else:
+            std_stability = 0.5
+            
+        # Get stability from pYIN method
+        if len(f0) > 0:
+            # Calculate pitch stability with pYIN
+            f0_std = np.std(f0)
+            f0_mean = np.mean(f0)
+            f0_cv = f0_std / f0_mean if f0_mean > 0 else 0
+            pyin_stability = 1.0 - min(f0_cv, 1.0)
+            
+            # Also look at microvariations using adjacent frames
+            if len(f0) > 1:
+                adjacent_diffs = np.abs(np.diff(f0))
+                micro_variation = np.mean(adjacent_diffs) / f0_mean if f0_mean > 0 else 0
+                micro_stability = 1.0 - min(micro_variation * 10, 1.0)  # Scale up small variations
+            else:
+                micro_stability = 0.5
+        else:
+            pyin_stability = 0.5
+            micro_stability = 0.5
+        
+        # Combine all stability measures, giving higher weight to more precise ones
+        features['pitch_stability'] = 0.2 * std_stability + 0.5 * pyin_stability + 0.3 * micro_stability
+        
+    except Exception as e:
+        # Fallback to standard method if pYIN fails
+        pitches, magnitudes = librosa.core.piptrack(y=audio_data, sr=sample_rate)
+        pitch_indices = np.argmax(magnitudes, axis=0)
+        pitches = pitches[pitch_indices, range(magnitudes.shape[1])]
+        pitches = pitches[pitches > 0]
+        
+        if len(pitches) > 0:
+            pitch_std = np.std(pitches)
+            pitch_mean = np.mean(pitches)
+            pitch_cv = pitch_std / pitch_mean if pitch_mean > 0 else 0
+            features['pitch_stability'] = 1.0 - min(pitch_cv, 1.0)
+        else:
+            features['pitch_stability'] = 0.5
     
     # 2. Spectral centroid - center of mass of spectrum
     # AI voices might have different spectral distributions
