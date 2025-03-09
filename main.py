@@ -89,11 +89,11 @@ with col2:
                 st.session_state.is_recording = True
                 st.session_state.recorded_audio = None
                 st.session_state.audio_data = None
-                st.experimental_rerun()
+                st.rerun()
         else:
             if st.button("Stop Recording"):
                 st.session_state.is_recording = False
-                st.experimental_rerun()
+                st.rerun()
     
     with record_col2:
         if st.session_state.recorded_audio is not None:
