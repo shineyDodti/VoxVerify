@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import time
 
-from utils.audio_processor import process_audio_file, record_audio
+from utils.audio_processor import process_audio_file, record_audio, bytes_to_numpy
 from model.feature_extractor import extract_features
 from model.classifier import predict_voice_type
 from utils.visualizer import plot_spectrogram, plot_features, plot_confidence
@@ -104,22 +104,31 @@ with col2:
     
     # Recording status and control
     if st.session_state.is_recording:
-        st.warning("Recording in progress... (Speak now)")
+        # Create a container for the recording process
+        record_container = st.container()
         
-        # Create a placeholder for the recording duration display
-        recording_status = st.empty()
-        
-        # Record audio for a maximum of 10 seconds
-        max_duration = 10  # seconds
-        start_time = time.time()
-        
-        audio_data = record_audio(max_duration=max_duration, 
-                                   status_element=recording_status)
-        
-        st.session_state.recorded_audio = audio_data
-        st.session_state.is_recording = False
-        st.success("Recording completed!")
-        st.audio(audio_data, format="audio/wav", sample_rate=22050)
+        with record_container:
+            st.warning("Recording in progress... (Speak now)")
+            
+            # Create a placeholder for the recording duration display
+            recording_status = st.empty()
+            
+            # Add a stop button inside the recording process
+            if st.button("Stop Recording Now"):
+                st.session_state.is_recording = False
+                st.rerun()
+            
+            # Record audio for a maximum of 10 seconds
+            max_duration = 10  # seconds
+            
+            # Generate sample audio since we're in a cloud environment
+            audio_data = record_audio(max_duration=max_duration, 
+                                     status_element=recording_status)
+            
+            st.session_state.recorded_audio = audio_data
+            st.session_state.is_recording = False
+            st.success("Sample audio generated successfully!")
+            st.audio(audio_data, format="audio/wav", sample_rate=22050)
 
 st.markdown("---")
 
@@ -131,8 +140,21 @@ if st.session_state.audio_data is not None:
     
     if analyze_button:
         with st.spinner("Analyzing voice characteristics..."):
+            # Check if audio_data is bytes (from recording) or numpy array (from file upload)
+            audio_data = st.session_state.audio_data
+            sample_rate = st.session_state.sample_rate
+            
+            # If it's bytes, convert to numpy array
+            if isinstance(audio_data, bytes):
+                # Ensure we have a valid sample rate (default to 22050 if None)
+                sr = sample_rate if sample_rate is not None else 22050
+                audio_data = bytes_to_numpy(audio_data, sr)
+            
+            # Make sure we have a valid sample rate for feature extraction
+            sr = sample_rate if sample_rate is not None else 22050
+                
             # Extract features
-            st.session_state.features = extract_features(st.session_state.audio_data, st.session_state.sample_rate)
+            st.session_state.features = extract_features(audio_data, sr)
             
             # Make prediction
             st.session_state.prediction, st.session_state.confidence = predict_voice_type(st.session_state.features)
@@ -159,7 +181,12 @@ if st.session_state.audio_data is not None:
             
             with viz_col1:
                 st.subheader("Audio Spectrogram")
-                fig = plot_spectrogram(st.session_state.audio_data, st.session_state.sample_rate)
+                # Make sure we're using the converted audio_data for the spectrogram if it was bytes
+                display_audio = audio_data if isinstance(st.session_state.audio_data, bytes) else st.session_state.audio_data
+                
+                # Ensure we have a valid sample rate for visualization
+                display_sr = st.session_state.sample_rate if st.session_state.sample_rate is not None else 22050
+                fig = plot_spectrogram(display_audio, display_sr)
                 st.pyplot(fig)
             
             with viz_col2:

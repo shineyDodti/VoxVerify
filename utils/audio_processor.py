@@ -51,8 +51,8 @@ def process_audio_file(file_path):
 
 def record_audio(max_duration=10, sample_rate=22050, status_element=None):
     """
-    Record audio from the microphone.
-    In cloud environment where microphone is unavailable, generates a sample tone.
+    Generates sample audio mimicking either human or AI voice.
+    In cloud environment where microphone is unavailable.
     
     Parameters:
     -----------
@@ -68,35 +68,75 @@ def record_audio(max_duration=10, sample_rate=22050, status_element=None):
     audio_data : bytes
         The recorded audio as a byte array
     """
-    # Generate a sample tone (for cloud environments without microphone)
+    # Generate sample audio
     if status_element:
         status_element.text("Generating sample audio...")
         
-    st.info("Creating a test audio sample for demonstration purposes.")
+    st.info("Creating an AI voice sample for demonstration purposes.")
     
-    # Generate a simple sine wave tone as sample data
+    # Choose to generate an AI-like voice sample
     duration = 3  # 3 seconds of audio
     t = np.linspace(0, duration, int(sample_rate * duration), False)
     
-    # Generate a note with some variations to make it more voice-like
-    tone = np.sin(2*np.pi*440*t) * 0.3  # A4 note
-    vibrato = np.sin(2*np.pi*5*t)  # 5 Hz vibrato
-    tone = tone * (1 + 0.1 * vibrato)  # Apply vibrato
+    # Function to generate a word-like segment
+    def generate_word(start_time, duration, base_freq):
+        word_t = t[int(start_time*sample_rate):int((start_time+duration)*sample_rate)]
+        if len(word_t) == 0:
+            return np.array([])
+            
+        # Very stable pitch (characteristic of AI voices)
+        tone = np.sin(2*np.pi*base_freq*word_t) * 0.4
+        
+        # Add very subtle vibrato (AI voices have minimal variations)
+        vibrato = np.sin(2*np.pi*2*word_t) * 0.02  # Very slight vibrato
+        tone = tone * (1 + vibrato)
+        
+        # Add harmonics with perfect ratios (AI voices have very clean harmonics)
+        tone += np.sin(2*np.pi*base_freq*2*word_t) * 0.2  # First harmonic
+        tone += np.sin(2*np.pi*base_freq*3*word_t) * 0.1  # Second harmonic
+        tone += np.sin(2*np.pi*base_freq*4*word_t) * 0.05  # Third harmonic
+        
+        # Apply a perfect envelope (too perfect, unlike human speech)
+        env_length = len(word_t)
+        envelope = np.ones(env_length)
+        attack = int(0.05 * env_length)  # Short attack
+        decay = int(0.1 * env_length)  # Short decay
+        envelope[:attack] = np.linspace(0, 1, attack)
+        envelope[-decay:] = np.linspace(1, 0, decay)
+        
+        return tone * envelope
     
-    # Add harmonics for richness
-    tone += np.sin(2*np.pi*880*t) * 0.15  # First harmonic
-    tone += np.sin(2*np.pi*1320*t) * 0.05  # Second harmonic
+    # Generate a sequence of "words" with unnaturally regular timing
+    audio = np.zeros_like(t)
     
-    # Apply envelope
-    envelope = np.ones_like(t)
-    attack = int(0.1 * sample_rate)  # 100ms attack
-    decay = int(0.3 * sample_rate)  # 300ms decay
-    envelope[:attack] = np.linspace(0, 1, attack)
-    envelope[-decay:] = np.linspace(1, 0, decay)
-    tone = tone * envelope
+    # Create consistent spacing between words (too consistent for human speech)
+    words = [
+        (0.1, 0.4, 380),    # Word 1: time, duration, frequency
+        (0.7, 0.3, 420),    # Word 2
+        (1.2, 0.5, 400),    # Word 3
+        (1.9, 0.35, 440),   # Word 4
+        (2.4, 0.45, 390)    # Word 5
+    ]
+    
+    # Add each word to the audio
+    for start, dur, freq in words:
+        word_segment = generate_word(start, dur, freq)
+        if len(word_segment) > 0:
+            end_idx = min(int((start+dur)*sample_rate), len(audio))
+            start_idx = int(start*sample_rate)
+            segment_length = end_idx - start_idx
+            if segment_length > 0:
+                audio[start_idx:end_idx] = word_segment[:segment_length]
+    
+    # Add a subtle background hum (common in AI voices)
+    background = np.sin(2*np.pi*50*t) * 0.01
+    audio = audio + background
+    
+    # Apply perfect normalization (too perfect for human speech)
+    audio = audio / np.max(np.abs(audio)) * 0.9
     
     # Convert to 16-bit PCM
-    audio_data = (tone * 32767).astype(np.int16).tobytes()
+    audio_data = (audio * 32767).astype(np.int16).tobytes()
     
     # Convert to WAV format
     with io.BytesIO() as wav_io:
