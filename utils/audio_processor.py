@@ -9,13 +9,13 @@ import time
 
 def process_audio_file(file_path):
     """
-    Process an audio file for feature extraction.
-    
+    Process an audio file for feature extraction.  Handles more audio formats.
+
     Parameters:
     -----------
     file_path : str
         Path to the audio file
-        
+
     Returns:
     --------
     audio_data : numpy array
@@ -24,60 +24,41 @@ def process_audio_file(file_path):
         The sample rate of the audio
     """
     try:
-        # Load audio file with error handling for various formats
-        try:
-            # First try standard librosa load
-            audio_data, sample_rate = librosa.load(file_path, sr=None, res_type='kaiser_fast')
-        except Exception as e:
-            # If that fails, try loading with scipy (handles more formats)
-            import scipy.io.wavfile as wav
-            sample_rate, audio_data = wav.read(file_path)
-            # Convert to float32 for librosa compatibility
-            audio_data = audio_data.astype(np.float32)
-            # Normalize to -1 to 1 range
-            if audio_data.dtype == np.int16:
-                audio_data = audio_data / 32768.0
-            elif audio_data.dtype == np.int32:
-                audio_data = audio_data / 2147483648.0
-            elif audio_data.dtype == np.uint8:
-                audio_data = (audio_data.astype(np.float32) - 128) / 128.0
-        
+        # Try loading with soundfile first (handles many formats)
+        audio_data, sample_rate = sf.read(file_path)
+
         # If stereo, convert to mono
         if len(audio_data.shape) > 1:
-            if audio_data.shape[1] == 2:  # If stereo (2 channels)
-                audio_data = librosa.to_mono(audio_data.T)  # Transpose if needed for librosa
-            else:
-                # Just take the first channel if multi-channel
-                audio_data = audio_data[:, 0]
-        
+            audio_data = librosa.to_mono(audio_data.T)
+
         # Ensure audio data is not empty
         if len(audio_data) == 0 or np.max(np.abs(audio_data)) == 0:
             raise ValueError("Audio file contains no data or is silent")
-            
+
         # Normalize audio (with protection against division by zero)
         max_val = np.max(np.abs(audio_data))
         if max_val > 0:
             audio_data = audio_data / max_val
-        
+
         # Trim silence
         audio_data, _ = librosa.effects.trim(audio_data, top_db=20)
-        
+
         # Ensure minimum duration (pad if necessary)
         min_duration = 3  # seconds
         if len(audio_data) < min_duration * sample_rate:
             padding = np.zeros(min_duration * sample_rate - len(audio_data))
             audio_data = np.concatenate([audio_data, padding])
-        
+
         # Ensure maximum duration (truncate if necessary)
         max_duration = 30  # seconds
         if len(audio_data) > max_duration * sample_rate:
             audio_data = audio_data[:max_duration * sample_rate]
-        
+
         return audio_data, sample_rate
-        
+
     except Exception as e:
-        # Re-raise with a more informative error message
-        raise Exception(f"Failed to process audio file: {str(e)}. Make sure the file is a valid audio format.")
+        raise Exception(f"Failed to process audio file: {str(e)}.  Check file format and ensure it's a supported audio type.")
+
 
 def record_audio(max_duration=10, sample_rate=22050, status_element=None):
     """

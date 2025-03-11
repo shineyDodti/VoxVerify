@@ -14,23 +14,26 @@ from utils.visualizer import plot_spectrogram, plot_features, plot_confidence
 
 # Page configuration
 st.set_page_config(
-    page_title="AI vs Human Voice Detector",
+    page_title="VoxVerify",
     page_icon="🎤",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # App header
-st.title("AI vs Human Voice Detector")
+
 st.markdown("""
+<h1 style="text-align: center; color: #007BFF; font-size: 48px;">
+        VoxVerify 🎙️
+    </h1>
     <div style="text-align: center;">
-        <p>Differentiate between AI-generated and human voices using machine learning</p>
+        <p> Welcome to VoxVerify! 🎤 Detect AI-generated voices with ease. Verify the voice origin</p>
     </div>
 """, unsafe_allow_html=True)
 
 st.markdown("---")
 
-# Create two columns for input methods
+#`` Create two columns for input methods
 col1, col2 = st.columns(2)
 
 # Initialize session state variables if they don't exist
@@ -58,7 +61,7 @@ if 'current_page' not in st.session_state:
 
 # File uploader column
 with col1:
-    st.subheader("Option 1: Upload Audio File")
+    st.subheader("Upload Audio File")
     uploaded_file = st.file_uploader("Choose an audio file", type=['wav', 'mp3', 'ogg', 'm4a'])
     
     if uploaded_file is not None:
@@ -93,7 +96,7 @@ with col1:
 
 # Audio recording column
 with col2:
-    st.subheader("Option 2: Record Your Voice")
+    st.subheader(" Record Your Voice")
     
     # Recording controls
     record_col1, record_col2 = st.columns(2)

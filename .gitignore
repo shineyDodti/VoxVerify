@@ -1,0 +1,59 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+*.pyd
+
+# Python package files
+*.egg-info
+.eggs/
+
+# Distribution / packaging
+.dist/
+build/
+develop-eggs/
+dist/
+downloads/
+sdist/
+egg-info/
+.eggs/
+*.egg
+
+# Local build data
+.ipynb_checkpoints
+*.c
+*.o
+*.a
+*.exe
+*.dll
+*.obj
+
+# Virtual environment files
+.venv/
+env/
+venv/
+virtualenv/
+
+# Python script execution related files
+*.pyc
+*.pickle
+*.db
+
+# Output files
+*.out
+*.log
+*.tmp
+
+# Temporary files
+.DS_Store
+Thumbs.db
+*.swp
+.tmp
+tmp
+*.cache
+
+# Replit specific files
+.replit/
