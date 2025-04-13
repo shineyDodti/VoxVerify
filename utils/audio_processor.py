@@ -62,105 +62,68 @@ def process_audio_file(file_path):
 
 def record_audio(max_duration=10, sample_rate=22050, status_element=None):
     """
-    Generates sample audio mimicking either human or AI voice.
-    In cloud environment where microphone is unavailable.
-    
+    Records actual audio using a microphone.
+
     Parameters:
     -----------
     max_duration : int
-        Maximum recording duration in seconds
+        Maximum recording duration in seconds.
     sample_rate : int
-        Sample rate for the recording
+        Sample rate for the recording.
     status_element : streamlit element
-        Element to update with recording status
-        
+        Element to update with recording status.
+
     Returns:
     --------
     audio_data : bytes
-        The recorded audio as a byte array
+        The recorded audio as a byte array in WAV format.
     """
-    # Generate sample audio
+    import pyaudio
+    import wave
+
+    # PyAudio configuration
+    chunk = 1024  # Buffer size
+    format = pyaudio.paInt16  # 16-bit PCM
+    channels = 1  # Mono
+    rate = sample_rate  # Sample rate
+
+    # Initialize PyAudio
+    p = pyaudio.PyAudio()
+
+    # Open the stream
+    stream = p.open(format=format,
+                    channels=channels,
+                    rate=rate,
+                    input=True,
+                    frames_per_buffer=chunk)
+
+    st.info("Recording audio... Speak now!")
     if status_element:
-        status_element.text("Generating sample audio...")
-        
-    st.info("Creating an AI voice sample for demonstration purposes.")
-    
-    # Choose to generate an AI-like voice sample
-    duration = 3  # 3 seconds of audio
-    t = np.linspace(0, duration, int(sample_rate * duration), False)
-    
-    # Function to generate a word-like segment
-    def generate_word(start_time, duration, base_freq):
-        word_t = t[int(start_time*sample_rate):int((start_time+duration)*sample_rate)]
-        if len(word_t) == 0:
-            return np.array([])
-            
-        # Perfectly stable pitch (characteristic of AI voices)
-        tone = np.sin(2*np.pi*base_freq*word_t) * 0.4
-        
-        # No vibrato at all - completely mechanical sound
-        # This is an obvious sign of AI-generated voice
-        
-        # Add harmonics with mathematically perfect ratios
-        tone += np.sin(2*np.pi*base_freq*2*word_t) * 0.2  # First harmonic
-        tone += np.sin(2*np.pi*base_freq*3*word_t) * 0.1  # Second harmonic
-        tone += np.sin(2*np.pi*base_freq*4*word_t) * 0.05  # Third harmonic
-        
-        # Apply a perfectly symmetrical envelope (unnatural in real speech)
-        env_length = len(word_t)
-        envelope = np.ones(env_length)
-        attack = int(0.05 * env_length)  # Short attack
-        decay = int(0.05 * env_length)  # Identical decay (unnatural symmetry)
-        
-        # Perfectly linear attack and decay (too perfect for human speech)
-        envelope[:attack] = np.linspace(0, 1, attack)
-        envelope[-decay:] = np.linspace(1, 0, decay)
-        
-        return tone * envelope
-    
-    # Generate a sequence of "words" with unnaturally regular timing
-    audio = np.zeros_like(t)
-    
-    # Create extremely consistent and robotic spacing between words
-    # Make it even more AI-like by having perfectly equal distances and frequencies
-    # This is a distinctive characteristic of synthetic speech
-    words = [
-        (0.1, 0.35, 400),    # Word 1: time, duration, frequency (constant frequency)
-        (0.6, 0.35, 400),    # Word 2: perfect timing and same pitch 
-        (1.1, 0.35, 400),    # Word 3: perfect timing and same pitch
-        (1.6, 0.35, 400),    # Word 4: perfect timing and same pitch
-        (2.1, 0.35, 400)     # Word 5: perfect timing and same pitch
-    ]
-    
-    # Add each word to the audio
-    for start, dur, freq in words:
-        word_segment = generate_word(start, dur, freq)
-        if len(word_segment) > 0:
-            end_idx = min(int((start+dur)*sample_rate), len(audio))
-            start_idx = int(start*sample_rate)
-            segment_length = end_idx - start_idx
-            if segment_length > 0:
-                audio[start_idx:end_idx] = word_segment[:segment_length]
-    
-    # Add a subtle background hum (common in AI voices)
-    background = np.sin(2*np.pi*50*t) * 0.01
-    audio = audio + background
-    
-    # Apply perfect normalization (too perfect for human speech)
-    audio = audio / np.max(np.abs(audio)) * 0.9
-    
-    # Convert to 16-bit PCM
-    audio_data = (audio * 32767).astype(np.int16).tobytes()
-    
-    # Convert to WAV format
+        status_element.text("Recording in progress...")
+
+    frames = []
+
+    # Record audio for the specified duration
+    for _ in range(0, int(rate / chunk * max_duration)):
+        data = stream.read(chunk)
+        frames.append(data)
+
+    # Stop and close the stream
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+
+    st.success("Recording complete!")
+
+    # Save the recorded audio to a WAV file in memory
     with io.BytesIO() as wav_io:
         with wave.open(wav_io, 'wb') as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)  # 16-bit
-            wf.setframerate(sample_rate)
-            wf.writeframes(audio_data)
+            wf.setnchannels(channels)
+            wf.setsampwidth(p.get_sample_size(format))
+            wf.setframerate(rate)
+            wf.writeframes(b''.join(frames))
         wav_data = wav_io.getvalue()
-        
+
     return wav_data
 
 def bytes_to_numpy(audio_bytes, sample_rate=22050):

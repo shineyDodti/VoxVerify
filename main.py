@@ -755,21 +755,22 @@ with st.sidebar:
     3. A machine learning model classifies the voice
     4. Results and visualizations are displayed
     """)
-    
-    # Add buttons for navigation
+
+    # Hamburger menu for navigation
     st.markdown("### Navigation")
-    nav_col1, nav_col2 = st.columns(2)
+    menu_option = st.selectbox(
+        "Choose a page",
+        options=["Main Analysis", "Documentation"],
+        index=0
+    )
     
-    with nav_col1:
-        if st.button("Main Analysis"):
-            st.session_state.current_page = "main"
-            st.rerun()
-    
-    with nav_col2:
-        if st.button("Documentation"):
-            st.session_state.current_page = "documentation"
-            st.rerun()
-    
+    if menu_option == "Main Analysis":
+        st.session_state.current_page = "main"
+        st.rerun()
+    elif menu_option == "Documentation":
+        st.session_state.current_page = "documentation"
+        st.rerun()
+
     st.markdown("---")
     
     st.subheader("Why This Matters")
