@@ -14,22 +14,20 @@ from utils.visualizer import plot_spectrogram, plot_features, plot_confidence
 
 # Page configuration
 st.set_page_config(
-    page_title="VoxVerify",
-    page_icon="🎤",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # App header
-
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.image("assets/VoxVerify1.png", width=300)
 st.markdown("""
-<h1 style="text-align: center; color: #007BFF; font-size: 48px;">
-        VoxVerify 🎙️
-    </h1>
     <div style="text-align: center;">
-        <p> Welcome to VoxVerify! 🎤 Detect AI-generated voices with ease. Verify the voice origin</p>
+        <p> Welcome to VoxVerify! 🎤 Detect AI-generated voices with ease. Verify the voice origin.</p>
     </div>
 """, unsafe_allow_html=True)
+
 
 st.markdown("---")
 
@@ -505,7 +503,7 @@ if st.session_state.audio_data is not None:
     
     elif st.session_state.current_page == "documentation":
         # Documentation Page 
-        st.title("Voice Recognition Technology Documentation")
+        st.title("VoxVerify Documentation")
         
         # Back button
         if st.button("← Back to Main Page"):
@@ -513,9 +511,9 @@ if st.session_state.audio_data is not None:
             st.rerun()
             
         # Introduction section
-        st.header("How AI Voice Detection Works")
+        st.header("How VoxVerify Works")
         st.markdown("""
-        This documentation explains the technology and science behind our AI vs. Human voice detection system.
+        This documentation explains the technology and science behind our VoxVerify.
         Understanding how voice detection works can help you interpret results and use the system more effectively.
         """)
         
@@ -557,7 +555,7 @@ if st.session_state.audio_data is not None:
             - Detailed breakdown of acoustic characteristics
             """)
             
-            st.image("https://i.ibb.co/j4TF6z2/voice-recognition-process.png", caption="Voice Recognition Process Flow")
+            st.image("assets/Voice Recognition Process Flow.png", width=100, caption="Voice Recognition Process Flow")
         
         with doc_tab2:
             st.subheader("Feature Extraction")
@@ -626,9 +624,9 @@ if st.session_state.audio_data is not None:
         with doc_tab3:
             st.subheader("Classification Model")
             st.markdown("""
-            ### How the AI vs. Human Classification Works
+            ### How the VoxVerify Works
             
-            Our voice classification system uses a sophisticated rule-based approach that mimics the behavior of advanced machine learning models,
+            Our VoxVerify uses a sophisticated rule-based approach that mimics the behavior of advanced machine learning models,
             specifically designed to identify the subtle differences between human and AI-generated voices.
             
             #### Classification Approach
@@ -744,7 +742,7 @@ if st.session_state.audio_data is not None:
 
 # Sidebar with information
 with st.sidebar:
-    st.image("assets/app_logo.svg", width=80)
+    st.image("assets/VoxVerify1.png", width=100)
     st.title("About this App")
     st.info("""
     This app analyzes voice recordings to determine if they are:
