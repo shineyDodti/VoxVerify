@@ -1,6 +1,5 @@
 import numpy as np
 import librosa
-import librosa.display
 import warnings
 
 # Suppress specific librosa warnings
@@ -40,138 +39,57 @@ def extract_features(audio_data, sample_rate):
     # Initialize features dictionary
     features = {}
     
-    # 1. Extract pitch (F0) and measure stability with multiple methods
-    # AI voices often have unnaturally stable pitch
-    
-    # Method 1: Use pYIN pitch tracking for more accuracy
+    # 1. Pitch Stability
     try:
-        # First use standard piptrack for broad analysis
-        pitches, magnitudes = librosa.core.piptrack(y=audio_data, sr=sample_rate)
-        pitch_indices = np.argmax(magnitudes, axis=0)
-        standard_pitches = pitches[pitch_indices, range(magnitudes.shape[1])]
-        standard_pitches = standard_pitches[standard_pitches > 0]  # Remove zero pitches
-        
-        # Then calculate f0 with higher resolution for more detailed analysis
-        frame_length = 2048
-        hop_length = 512
-        f0, voiced_flag, voiced_probs = librosa.pyin(audio_data, 
-                                                   fmin=librosa.note_to_hz('C2'), 
-                                                   fmax=librosa.note_to_hz('C7'),
-                                                   sr=sample_rate,
-                                                   frame_length=frame_length,
-                                                   hop_length=hop_length)
-        
-        # Remove NaN values
+        f0, _, _ = librosa.pyin(audio_data, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'), sr=sample_rate)
         f0 = f0[~np.isnan(f0)]
-        
-        # Get stability scores from both methods
-        if len(standard_pitches) > 0:
-            # Calculate coefficient of variation for standard method
-            std_pitch_std = np.std(standard_pitches)
-            std_pitch_mean = np.mean(standard_pitches)
-            std_pitch_cv = std_pitch_std / std_pitch_mean if std_pitch_mean > 0 else 0
-            std_stability = 1.0 - min(std_pitch_cv, 1.0)
-        else:
-            std_stability = 0.5
-            
-        # Get stability from pYIN method
         if len(f0) > 0:
-            # Calculate pitch stability with pYIN
-            f0_std = np.std(f0)
-            f0_mean = np.mean(f0)
-            f0_cv = f0_std / f0_mean if f0_mean > 0 else 0
-            pyin_stability = 1.0 - min(f0_cv, 1.0)
-            
-            # Also look at microvariations using adjacent frames
-            if len(f0) > 1:
-                adjacent_diffs = np.abs(np.diff(f0))
-                micro_variation = np.mean(adjacent_diffs) / f0_mean if f0_mean > 0 else 0
-                micro_stability = 1.0 - min(micro_variation * 10, 1.0)  # Scale up small variations
-            else:
-                micro_stability = 0.5
-        else:
-            pyin_stability = 0.5
-            micro_stability = 0.5
-        
-        # Combine all stability measures, giving higher weight to more precise ones
-        features['pitch_stability'] = 0.2 * std_stability + 0.5 * pyin_stability + 0.3 * micro_stability
-        
-    except Exception as e:
-        # Fallback to standard method if pYIN fails
-        pitches, magnitudes = librosa.core.piptrack(y=audio_data, sr=sample_rate)
-        pitch_indices = np.argmax(magnitudes, axis=0)
-        pitches = pitches[pitch_indices, range(magnitudes.shape[1])]
-        pitches = pitches[pitches > 0]
-        
-        if len(pitches) > 0:
-            pitch_std = np.std(pitches)
-            pitch_mean = np.mean(pitches)
+            pitch_std = np.std(f0)
+            pitch_mean = np.mean(f0)
             pitch_cv = pitch_std / pitch_mean if pitch_mean > 0 else 0
             features['pitch_stability'] = 1.0 - min(pitch_cv, 1.0)
         else:
             features['pitch_stability'] = 0.5
+    except Exception:
+        features['pitch_stability'] = 0.5
     
-    # 2. Spectral centroid - center of mass of spectrum
-    # AI voices might have different spectral distributions
+    # 2. Spectral Centroid
     spectral_centroids = librosa.feature.spectral_centroid(y=audio_data, sr=sample_rate)[0]
     features['spectral_centroid'] = np.mean(spectral_centroids)
     
-    # 3. Spectral flatness - how noise-like vs. tone-like the sound is
-    # AI voices often have different tonal characteristics
+    # 3. Spectral Flatness
     spectral_flatness = librosa.feature.spectral_flatness(y=audio_data)[0]
     features['spectral_flatness'] = np.mean(spectral_flatness)
     
-    # 4. Harmonic-percussive source separation
-    # Calculate harmonic to percussive ratio - AI voices may be more harmonic
+    # 4. Harmonic Ratio
     y_harmonic, y_percussive = librosa.effects.hpss(audio_data)
     harmonic_energy = np.sum(y_harmonic**2)
     percussive_energy = np.sum(y_percussive**2)
     total_energy = harmonic_energy + percussive_energy
-    if total_energy > 0:
-        features['harmonic_ratio'] = harmonic_energy / total_energy
-    else:
-        features['harmonic_ratio'] = 0.5
+    features['harmonic_ratio'] = harmonic_energy / total_energy if total_energy > 0 else 0.5
     
-    # 5. Tempo and rhythm analysis - humans have natural variations
-    # Extract tempo and onset strength
+    # 5. Tempo Variability
     onset_env = librosa.onset.onset_strength(y=audio_data, sr=sample_rate)
-    tempo, _ = librosa.beat.beat_track(onset_envelope=onset_env, sr=sample_rate)
-    features['tempo'] = tempo
-    
-    # Calculate tempo variability through onset strength variance
-    # Higher variance indicates more natural rhythm (human-like)
     if len(onset_env) > 0:
         features['tempo_variability'] = np.std(onset_env) / np.mean(onset_env) if np.mean(onset_env) > 0 else 0
     else:
         features['tempo_variability'] = 0.5
     
-    # 6. Formant analysis - AI voices might have unnaturally clear formants
-    # Use MFCC as a proxy for formant analysis
+    # 6. Formant Clarity
     mfccs = librosa.feature.mfcc(y=audio_data, sr=sample_rate, n_mfcc=13)
-    mfcc_mean = np.mean(mfccs, axis=1)
     mfcc_std = np.std(mfccs, axis=1)
+    features['formant_clarity'] = 1.0 - min(np.mean(mfcc_std) / 100.0, 1.0)
     
-    # Using the variance in MFCCs as an indicator of formant clarity
-    features['formant_clarity'] = 1.0 - min(np.mean(mfcc_std) / 100.0, 1.0)  # Higher = clearer formants
-    
-    # 7. Jitter and shimmer approximation 
-    # (variations in pitch and amplitude - humans have more)
-    
-    # For shimmer (amplitude variation)
-    y_frames = librosa.util.frame(audio_data, frame_length=2048, hop_length=512)
-    rms_frames = np.sqrt(np.mean(y_frames**2, axis=0))
-    if len(rms_frames) > 1:
-        shimmer = np.std(rms_frames) / np.mean(rms_frames) if np.mean(rms_frames) > 0 else 0
-        features['shimmer'] = min(shimmer, 1.0)  # Higher = more variation = more human-like
-    else:
-        features['shimmer'] = 0.5
-    
-    # 8. Spectral contrast - differences between peaks and valleys
+    # 7. Spectral Contrast
     contrast = librosa.feature.spectral_contrast(y=audio_data, sr=sample_rate)
     features['spectral_contrast'] = np.mean(contrast)
     
-    # 9. Zero crossing rate - related to frequency content
+    # 8. Zero Crossing Rate
     zero_crossings = librosa.feature.zero_crossing_rate(audio_data)[0]
     features['zero_crossing_rate'] = np.mean(zero_crossings)
+    
+    # Normalize features
+    for key in features:
+        features[key] = min(max(features[key], 0.0), 1.0)  # Clamp values between 0 and 1
     
     return features
